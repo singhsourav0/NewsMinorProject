@@ -1,0 +1,35 @@
+name: Update Firebase on JSON Change
+
+on:
+  push:
+    branches:
+      - main   # Runs when changes are pushed to the main branch
+    paths:
+      - 'latest_news.json'  # Updated filename
+
+  workflow_dispatch:  # Allows manual trigger from GitHub Actions
+
+permissions:
+  contents: read
+
+jobs:
+  update-firebase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Firebase Tools
+        run: npm install -g firebase-tools
+
+      - name: Authenticate with Firebase
+        run: echo '${{ secrets.FIREBASE_CREDENTIALS }}' > firebase-credentials.json
+
+      - name: Update Firebase Database
+        run: |
+          firebase database:set /news ./latest_news.json --project ai-news-d465d --token "$(cat firebase-credentials.json | jq -r .private_key)"
