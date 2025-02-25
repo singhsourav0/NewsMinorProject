@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Viewer</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #1a1a1a;
+            --secondary-color: #2d2d2d;
+            --accent-color: #e1306c;
+            --text-color: #ffffff;
+            --card-height: 85vh;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 480px;
+            width: 100%;
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            position: relative;
+            scroll-snap-type: y mandatory;
+        }
+
+        .news-card {
+            height: var(--card-height);
+            background: var(--secondary-color);
+            border-radius: 20px;
+            margin: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+            scroll-snap-align: start;
+            min-height: 100vh;
+        }
+
+        .news-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .thumbnail {
+            width: 100%;
+            height: 40%;
+            object-fit: cover;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .content {
+            padding: 20px;
+            height: 60%;
+            overflow-y: auto;
+        }
+
+        .headline {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .summary {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #bababa;
+            margin-bottom: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+            overflow: hidden;
+        }
+
+        .metadata {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            color: #bababa;
+        }
+
+        .author {
+            margin-right: 15px;
+        }
+
+        .date {
+            margin-right: 15px;
+        }
+
+        .keywords {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .keyword {
+            background: var(--accent-color);
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+
+        .actions {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .action-button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .action-button:hover {
+            background: var(--accent-color);
+            transform: scale(1.1);
+        }
+
+        .action-button i {
+            font-size: 1.2rem;
+        }
+
+        .authenticity-score {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+
+        .source-tag {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--accent-color);
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 1.2rem;
+            color: var(--accent-color);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+            }
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+
+        /* Scrollbar styling */
+        .content::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .content::-webkit-scrollbar-track {
+            background: var(--secondary-color);
+        }
+
+        .content::-webkit-scrollbar-thumb {
+            background: var(--accent-color);
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="news-container">
+        <!-- News cards will be dynamically inserted here -->
+    </div>
+
+    <script>
+        class NewsViewer {
+            constructor() {
+                this.container = document.getElementById('news-container');
+                this.newsData = [];
+                this.currentIndex = 0;
+                this.isLoading = false;
+                this.init();
+            }
+
+            async init() {
+                try {
+                    const response = await fetch('news_output.json');
+                    const data = await response.json();
+                    this.newsData = Object.values(data);
+                    this.loadMoreNews();
+                    this.setupInfiniteScroll();
+                } catch (error) {
+                    console.error('Error loading news:', error);
+                }
+            }
+
+            createNewsCard(article) {
+                const date = new Date(article.timestamp).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                const card = document.createElement('div');
+                card.className = 'news-card slide-in';
+                card.innerHTML = `
+                    <div class="authenticity-score">
+                        <i class="fas fa-shield-check"></i> ${article.authenticity_score}% Authentic
+                    </div>
+                    <div class="source-tag">
+                        <i class="fas fa-newspaper"></i> ${article.source}
+                    </div>
+                    <img src="${article.thumbnail}" alt="${article.headline}" class="thumbnail">
+                    <div class="content">
+                        <h1 class="headline">${article.headline}</h1>
+                        <div class="summary">${article.summary}</div>
+                        <div class="metadata">
+                            <span class="author"><i class="fas fa-user"></i> ${article.author}</span>
+                            <span class="date"><i class="fas fa-calendar"></i> ${date}</span>
+                        </div>
+                        <div class="keywords">
+                            ${article.keywords.map(keyword => `
+                                <span class="keyword">${keyword}</span>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <div class="action-button">
+                            <i class="fas fa-heart"></i>
+                        </div>
+                        <div class="action-button">
+                            <i class="fas fa-share"></i>
+                        </div>
+                        <div class="action-button">
+                            <i class="fas fa-bookmark"></i>
+                        </div>
+                    </div>
+                `;
+
+                // Add interaction handlers
+                card.querySelectorAll('.action-button').forEach(button => {
+                    button.addEventListener('click', function() {
+                        this.classList.add('active');
+                        this.style.transform = 'scale(1.2)';
+                        setTimeout(() => {
+                            this.style.transform = 'scale(1)';
+                        }, 200);
+                    });
+                });
+
+                return card;
+            }
+
+            loadMoreNews() {
+                if (this.currentIndex < this.newsData.length) {
+                    const article = this.newsData[this.currentIndex];
+                    const card = this.createNewsCard(article);
+                    this.container.appendChild(card);
+                    this.currentIndex++;
+                }
+            }
+
+            setupInfiniteScroll() {
+                const options = {
+                    root: null,
+                    rootMargin: '0px',
+                    threshold: 0.1
+                };
+
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && !this.isLoading) {
+                            this.isLoading = true;
+                            this.loadMoreNews();
+                            this.isLoading = false;
+                        }
+                    });
+                }, options);
+
+                // Observe the last card
+                const observeLastCard = () => {
+                    const cards = document.querySelectorAll('.news-card');
+                    if (cards.length > 0) {
+                        observer.observe(cards[cards.length - 1]);
+                    }
+                };
+
+                // Initial observation
+                observeLastCard();
+
+                // Re-observe when new cards are added
+                this.container.addEventListener('DOMNodeInserted', (event) => {
+                    if (event.target.classList?.contains('news-card')) {
+                        observeLastCard();
+                    }
+                });
+            }
+        }
+
+        // Initialize the news viewer
+        document.addEventListener('DOMContentLoaded', () => {
+            new NewsViewer();
+        });
+    </script>
+</body>
+</html>
