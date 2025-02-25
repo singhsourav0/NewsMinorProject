@@ -1,34 +1,37 @@
-name: Upload News JSON  # Changed name to reflect its purpose
+name: Upload latest_news.json to Firebase Storage
 
 on:
   push:
     branches:
-      - main  # Runs when changes are pushed to the main branch
-  workflow_dispatch:  # Allows manual triggering
-
-permissions:
-  contents: write  # Allow pushing changes
+      - main # Trigger on pushes to the 'main' branch (adjust as needed)
 
 jobs:
-  upload-json:
+  upload-to-firebase:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Setup Firebase CLI
-        run: npm install -g firebase-tools
+    - name: Install Firebase CLI
+      run: npm install -g firebase-tools
 
-      - name: Authenticate with Firebase
-        env:
-          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
-        run: |
-          echo "$FIREBASE_CREDENTIALS" > firebase-credentials.json
-          export GOOGLE_APPLICATION_CREDENTIALS=firebase-credentials.json
+    - name: Get Firebase Private Key
+      id: firebase-private-key
+      run: echo "::set-output name=privateKey::${{ secrets.FIREBASE_PRIVATE_KEY }}"
 
-      - name: Upload JSON to Firebase
-        run: |
-          firebase database:set /news ./latest_news.json --project ai-news-d465d --confirm
+    - name: Get Firebase Credentials
+      id: firebase-credentials
+      run: echo "::set-output name=credentials::${{ secrets.FIREBASE_CREDENTIALS }}"
+
+    - name: Authenticate Firebase
+      run: |
+        combinedCredentials=$(echo "${{ steps.firebase-credentials.outputs.credentials }}" | jq -r '. + {privateKey: "'${{ steps.firebase-private-key.outputs.privateKey }}'" }')
+        echo "$combinedCredentials" > firebase_creds.json
+        firebase use --add
+        firebase login:ci --no-localhost "$combinedCredentials"
+
+
+    - name: Upload latest_news.json
+      run: |
+        firebase deploy --only storage --token "$(firebase login:ci --no-localhost "$combinedCredentials")" --project ${{ secrets.FIREBASE_CREDENTIALS | jq -r '.project_id' }}
+
