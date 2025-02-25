@@ -1,36 +1,39 @@
-name: Update Firebase Storage
+name: News Scraper
 
 on:
-  push:
-    branches:
-      - main # Trigger on pushes to the 'main' branch (adjust as needed)
+  schedule:
+    - cron: '*/5 * * * *'  # Runs every 5 minutes
+  workflow_dispatch:
+
+permissions:
+  contents: write  # Allow pushing changes
 
 jobs:
-  upload-to-firebase:
+  track:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
-      - name: Get Firebase Private Key
-        id: firebase-private-key
-        run: echo "::set-output name=privateKey::${{ secrets.FIREBASE_PRIVATE_KEY }}"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-      - name: Get Firebase Credentials
-        id: firebase-credentials
-        run: echo "${{ secrets.FIREBASE_CREDENTIALS }}" > firebase_creds.json
+      - name: Run Firebase script
+        env:
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}  # 🔥 Load Firebase credentials from GitHub Secrets
+        run: python firebase.py
 
-      - name: Extract Firebase Project ID
-        id: project-id
-        run: echo "PROJECT_ID=$(jq -r '.project_id' firebase_creds.json)" >> $GITHUB_ENV
-
-      - name: Authenticate Firebase
+      - name: Commit and push changes
         run: |
-          firebase use --add --token "$(cat firebase_creds.json)"
-          firebase login:ci --no-localhost "$(cat firebase_creds.json)"
-
-      - name: Upload latest_news.json
-        run: firebase deploy --only storage --token "$(cat firebase_creds.json)" --project $PROJECT_ID
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add .
+          git commit -m "Update data" || echo "No changes to commit"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
