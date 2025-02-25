@@ -1,35 +1,47 @@
-name: Update Firebase on JSON Change
+name: News Scrapper
 
 on:
   push:
     branches:
-      - main   # Runs when changes are pushed to the main branch
-    paths:
-      - 'latest_news.json'  # Updated filename
-
-  workflow_dispatch:  # Allows manual trigger from GitHub Actions
+      - main
+  schedule:
+    - cron: '*/10 * * * *'  # Every 10 minutes
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write  # Allow pushing changes
 
 jobs:
-  update-firebase:
+  track:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Set Up Node.js
-        uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}  # Explicitly use the token
 
-      - name: Install Firebase Tools
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run News Scraper
+        run: python NewsExtract.py
+
+      - name: Setup Firebase CLI
         run: npm install -g firebase-tools
 
       - name: Authenticate with Firebase
-        run: echo '${{ secrets.FIREBASE_CREDENTIALS }}' > firebase-credentials.json
-
-      - name: Update Firebase Database
+        env:
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
         run: |
-          firebase database:set /news ./latest_news.json --project ai-news-d465d --token "$(cat firebase-credentials.json | jq -r .private_key)"
+          echo "$FIREBASE_CREDENTIALS" > firebase-credentials.json
+          export GOOGLE_APPLICATION_CREDENTIALS=firebase-credentials.json
+
+      - name: Upload JSON to Firebase
+        run: |
+          firebase database:set /news ./latest_news.json --project ai-news-d465d
