@@ -1,4 +1,4 @@
-name: News Scraper
+name: News Sender
 
 on:
   schedule:

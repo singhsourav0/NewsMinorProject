@@ -1,0 +1,22 @@
+name: Redeploy GitHub Pages
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # Runs every 10 minutes
+  workflow_dispatch:  # Allows manual triggering
+
+permissions:
+  pages: write  # Required for GitHub Pages deployment
+  id-token: write  # Needed for GitHub authentication
+
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
