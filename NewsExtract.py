@@ -12,7 +12,19 @@ vector = pickle.load(open('vector.pkl', 'rb'))
 class NewsScraper:
     def __init__(self):
         self.parsers = {"BBC": self.parse_bbc}
-        self.targets = [("https://www.bbc.com", "BBC", ["/", "/news", "/sport", "/business", "/innovation", "/culture", "/arts", "/travel", "/future-planet"][:])]
+        self.targets = [("https://www.bbc.com", "BBC", [
+    "/", 
+    "/news", 
+    "/sport", 
+    "/business", 
+    "/innovation", 
+    "/culture", 
+    "/arts", 
+    "/travel", 
+    "/future-planet", 
+    "/india-news"  # Added Indian news tag
+]
+[:])]
 
     async def fetch(self, session, url):
         try:
