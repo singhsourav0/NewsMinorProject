@@ -2,8 +2,8 @@ name: News Scrapper
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Every 10 minutes
-  workflow_dispatch:
+    - cron: '0 * * * *'  # Runs at the start of every hour
+  workflow_dispatch:  # Allows manual triggering
 
 # Grant write permissions to the GITHUB_TOKEN
 permissions:
