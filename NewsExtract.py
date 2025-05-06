@@ -12,19 +12,7 @@ vector = pickle.load(open('vector.pkl', 'rb'))
 class NewsScraper:
     def __init__(self):
         self.parsers = {"BBC": self.parse_bbc}
-        self.targets = [("https://www.bbc.com", "BBC", [
-    "/", 
-    "/news", 
-    "/sport", 
-    "/business", 
-    "/innovation", 
-    "/culture", 
-    "/arts", 
-    "/travel", 
-    "/future-planet", 
-    "/india-news"  # Added Indian news tag
-]
-[:])]
+        self.targets = [("https://www.bbc.com", "BBC", ["/", "/news", "/news/world/asia/india", "/news/world/asia"][:])]
 
     async def fetch(self, session, url):
         try:
@@ -38,7 +26,9 @@ class NewsScraper:
         articles = soup.find_all("a", href=True)
         return [
             {"headline": a.get_text(strip=True), "url": f"https://www.bbc.com{a['href']}"}
-            for a in articles if "article" in a["href"] and a["href"].startswith("/")
+            for a in articles if "article" in a["href"] and a["href"].startswith("/") and any(
+                keyword in a.get_text(strip=True).lower() for keyword in ["india", "bihar", "uttar pradesh"]
+            )
         ]
 
     async def scrape_headlines(self, session):
